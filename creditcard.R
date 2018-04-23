@@ -1,19 +1,19 @@
 data<- 'https://raw.githubusercontent.com/frankhlchi/R-scorecard/b092981b89a90f8cdf83046138acc31b478d3dcc/german_credit.csv'
 german_credit<- read.csv(data,header = T)
 
-#????????????????????????75%,25%????????????(train)????????????(validation)
+#将数据集按75%,25%分成训练集(train)和验证集(validation)
 library(caret)
 set.seed(2000)
 train1 <-createDataPartition(y=german_credit$Creditability,p=0.75,list=FALSE)
 train <- german_credit[train1, ]
 test <- german_credit[-train1, ]
 
-#Exploratory Data Analysis:???????????????????????????
+#Exploratory Data Analysis:
 hist(german_credit[,3]) #?????????????????????
 hist(german_credit[,14]) #???????????????hist(german_credit[,6]) #?????????????????????
 hist(german_credit[,1], probability = T) #?????????????????????
 
-# using supervised discretizaion?????????????????????
+# using supervised discretizaion将连续变量分类
 library(smbinning)
 Durationresult=smbinning(df=train,y="Creditability",x="Duration",p=0.05)
 CreditAmountresult=smbinning(df=train,y="Creditability",x="CreditAmount",p=0.05) 
@@ -23,7 +23,7 @@ smbinning.plot(CreditAmountresult,option="WoE",sub="CreditAmount") #??????WoE
 smbinning.plot(Durationresult,option="WoE",sub="Duration")
 smbinning.plot(Ageresult,option="WoE",sub="Age")
 
-#????????????????????????????????????woe,?????????????????????
+#计算有经济含义的变量的woe，对已分类数据进行清理
 library(woe)
 AccountBalancewoe=woe(train, "AccountBalance",Continuous = F, "Creditability",C_Bin = 4,Good = "1",Bad = "0")
 ggplot(AccountBalancewoe, aes(x = BIN, y = -WOE)) + geom_bar(stat = "identity",fill = "blue", colour = "grey60",size = 0.2, alpha = 0.2)+labs(title = "AccountBalance")
@@ -31,7 +31,6 @@ ValueSavingswoe=woe(train, "ValueSavings",Continuous = F, "Creditability",C_Bin 
 ggplot(ValueSavingswoe, aes(x = BIN, y = -WOE)) + geom_bar(stat = "identity",fill = "blue", colour = "grey60",size = 0.2, alpha = 0.2)+labs(title = "ValueSavings") #5?????????,?????????
 Lengthofcurrentemploymentwoe=woe(train, "Lengthofcurrentemployment",Continuous = F, "Creditability",C_Bin = 4,Good = "1",Bad = "0")
 ggplot(Lengthofcurrentemploymentwoe, aes(x = BIN, y = -WOE)) + geom_bar(stat = "identity",fill = "blue", colour = "grey60",size = 0.2, alpha = 0.2)+labs(title = "Lengthofcurrentemployment") 
-#????????????,???1???2??????,4???5??????#
 for(i in 1:750){
   if(train$Lengthofcurrentemployment[i]==5){train$Lengthofcurrentemployment[i]=4}
 }
@@ -41,7 +40,7 @@ for(i in 1:750){
 Lengthofcurrentemploymentwoe=woe(train, "Lengthofcurrentemployment",Continuous = F, "Creditability",C_Bin = 4,Good = "1",Bad = "0")
 ggplot(Lengthofcurrentemploymentwoe, aes(x = BIN, y = -WOE)) + geom_bar(stat = "identity",fill = "blue", colour = "grey60",size = 0.2, alpha = 0.2)+labs(title = "Lengthofcurrentemployment")
 
-#?????????????????????????????????IV
+#按照上述分类计算IV
 library(corrplot)
 cor1<-cor(train)
 corrplot(cor1,tl.cex = 0.5)
@@ -126,11 +125,11 @@ Noofdependentswoe=woe(train, "Noofdependents",Continuous = F, "Creditability",C_
 Telephonewoe=woe(train, "Telephone",Continuous = F, "Creditability",C_Bin = 2,Good = "1",Bad = "0")
 ForeignWorkerwoe=woe(train, "ForeignWorker",Continuous = F, "Creditability",C_Bin = 2,Good = "1",Bad = "0")
 
-#???woe?????????iv???
 va = c("AccountBalance",	"Duration",	"PaymentStatusofPreviousCredit",	"Purpose",	"CreditAmount",	"ValueSavings",	"Lengthofcurrentemployment",	"Instalmentpercent","Sex.Marital.Status","Guarantors","DurationinCurrentaddress",	"Mostvaluableavailableasset",	"Age","ConcurrentCredits","Typeofapartment",	"NoofCreditatthisBank","Occupation","Noofdependents",	"Telephone"	,"ForeignWorker")
 iv=c(sum(AccountBalancewoe$IV),sum(Durationwoe$IV),sum(PaymentStatusofPreviousCreditwoe$IV),sum(Purposewoe$IV),sum(CreditAmountwoe$IV),sum(ValueSavingswoe$IV),sum(Lengthofcurrentemploymentwoe$IV) ,sum(Instalmentpercentwoe$IV), sum(Sex.Marital.Statuswoe$IV) ,sum(Guarantorswoe$IV)  ,sum(DurationinCurrentaddresswoe$IV) ,sum(Mostvaluableavailableassetwoe$IV),sum(Agewoe$IV),sum(ConcurrentCreditswoe$IV),sum(Typeofapartmentwoe$IV),sum(NoofCreditatthisBankwoe$IV),sum(Occupationwoe$IV), sum(Noofdependentswoe$IV), sum(Telephonewoe$IV),sum(ForeignWorkerwoe$IV))
 infovalue = data.frame(va,iv)
 ggplot(infovalue, aes(x = va, y = iv)) + geom_bar(stat = "identity",fill = "blue", colour = "grey60",size = 0.2, alpha = 0.2)+labs(title = "Information value")+ theme(axis.text.x=element_text(angle=90,colour="black",size=10))
+#去除低iv的特征
 #Durationincurrentaddress,ForeignWorker,Guarantors,NoofCreditatthisBank,Noofdependents,occupation,sex.maritial.status,Telephone delete.
 
 german_credit$DurationinCurrentaddress=NULL
@@ -158,7 +157,6 @@ test$Occupation=NULL
 test$Sex.Marital.Status=NULL
 test$NoofCreditatthisBank=NULL
 
-
 AccountBalancewoe=woe(train, "AccountBalance",Continuous = F, "Creditability",C_Bin = 4,Good = "1",Bad = "0")
 Durationwoe=woe(train, "Duration",Continuous = F, "Creditability",C_Bin = 3,Good = "1",Bad = "0")
 PaymentStatusofPreviousCreditwoe=woe(train, "PaymentStatusofPreviousCredit",Continuous = F, "Creditability",C_Bin = 4,Good = "1",Bad = "0")
@@ -172,7 +170,7 @@ Agewoe=woe(train, "Age",Continuous = F, "Creditability",C_Bin = 2,Good = "1",Bad
 ConcurrentCreditswoe=woe(train, "ConcurrentCredits",Continuous = F, "Creditability",C_Bin = 3,Good = "1",Bad = "0")
 Typeofapartmentwoe=woe(train, "Typeofapartment",Continuous = F, "Creditability",C_Bin = 3,Good = "1",Bad = "0")
 
-#?????????????????????woe???
+#将原有的分类数据替换成woe
 for(i in 1:1000){
   for(s in 1:4){
     if(german_credit$AccountBalance[i]==s){
@@ -333,7 +331,7 @@ for(i in 1:750){
   }
 }  
 
-#??????????????????(???????????????????????????????????????????????????)
+#将woe化后的数据进行逐步逻辑回归
 fit<-glm(Creditability~ AccountBalance + Duration +PaymentStatusofPreviousCredit +Purpose + CreditAmount + ValueSavings + Lengthofcurrentemployment + Instalmentpercent + Mostvaluableavailableasset + Age + ConcurrentCredits + Typeofapartment,train,family = "binomial")
 backwards = step(fit)
 
@@ -343,9 +341,9 @@ summary(fit2)
 
 library(car)
 vif(fit2, digits =3)
-#???????????????
+#不受多重共线性影响
 
-#????????????????????????
+#用验证集验证模型
 AccountBalancewoe2=woe(test, "AccountBalance",Continuous = F, "Creditability",C_Bin = 4,Good = "1",Bad = "0")
 Durationwoe2=woe(test, "Duration",Continuous = F, "Creditability",C_Bin = 3,Good = "1",Bad = "0")
 PaymentStatusofPreviousCreditwoe2=woe(test, "PaymentStatusofPreviousCredit",Continuous = F, "Creditability",C_Bin = 4,Good = "1",Bad = "0")
@@ -449,4 +447,5 @@ for (i in 1:250) {
 
 confusionmatrix<- as.table(table(test$Creditability,prediction))
 confusionmatrix[2,2]/(confusionmatrix[2,2]+confusionmatrix[1,2])
-#sensitivity=90.7%
+
+#sensitivity=90.7%，模型效果良好
